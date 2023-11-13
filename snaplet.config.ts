@@ -4,21 +4,52 @@
 import { copycat } from "@snaplet/copycat";
 import { defineConfig } from "snaplet";
 
-import { hashPassword } from "@calcom/features/auth/lib/hashPassword";
+import { createUserAndEventType } from "./.snaplet/utils.ts";
 
 copycat.setHashKey("zXBAR+MWoTUaO94S");
 
 export default defineConfig({
   generate: {
     async run(snaplet) {
-      await snaplet.users([
-        {
-          name: "delete-me",
-          email: "delete-me@example.com",
-          username: "delete-me",
-          password: await hashPassword("delete-me"),
-          Schedule: undefined,
-        },
+      snaplet.$pipe([
+        ...(await createUserAndEventType(snaplet, {
+          user: {
+            email: "delete-me@example.com",
+            name: "delete-me",
+            password: "delete-me",
+            username: "delete-me",
+          },
+        })),
+        ...(await createUserAndEventType(snaplet, {
+          user: {
+            email: "onboarding@example.com",
+            password: "onboarding",
+            username: "onboarding",
+            name: "onboarding",
+            completedOnboarding: false,
+          },
+        })),
+        ...(await createUserAndEventType(snaplet, {
+          user: {
+            email: "free-first-hidden@example.com",
+            password: "free-first-hidden",
+            username: "free-first-hidden",
+            name: "Free First Hidden Example",
+          },
+          eventTypes: [
+            {
+              title: "30min",
+              slug: "30min",
+              length: 30,
+              hidden: true,
+            },
+            {
+              title: "60min",
+              slug: "60min",
+              length: 30,
+            },
+          ],
+        })),
       ]);
     },
   },

@@ -4,7 +4,7 @@ import type { ConfigType } from "@calcom/dayjs";
 import dayjs from "@calcom/dayjs";
 import type { Schedule, TimeRange, WorkingHours } from "@calcom/types/schedule";
 
-import { nameOfDay } from "./weekday";
+import { nameOfDay } from "./weekday.ts";
 
 // sets the desired time in current date, needs to be current date for proper DST translation
 export const defaultDayRange: TimeRange = {
