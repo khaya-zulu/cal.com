@@ -4,7 +4,7 @@ type Nested<V> = V | { [s: string]: V | Nested<V> } | Array<V | Nested<V>>;
 type Json = Nested<JsonPrimitive>;
 type Enum_public_access_scope = 'READ_BOOKING' | 'READ_PROFILE';
 type Enum_public_app_categories = 'analytics' | 'automation' | 'calendar' | 'conferencing' | 'crm' | 'messaging' | 'other' | 'payment' | 'video' | 'web3';
-type Enum_public_booking_status = 'accepted' | 'cancelled' | 'pending' | 'rejected';
+type Enum_public_booking_status = 'accepted' | 'awaiting_host' | 'cancelled' | 'pending' | 'rejected';
 type Enum_public_event_type_custom_input_type = 'bool' | 'number' | 'phone' | 'radio' | 'text' | 'textLong';
 type Enum_public_feature_type = 'EXPERIMENT' | 'KILL_SWITCH' | 'OPERATIONAL' | 'PERMISSION' | 'RELEASE';
 type Enum_public_identity_provider = 'CAL' | 'GOOGLE' | 'SAML';
@@ -16,7 +16,7 @@ type Enum_public_reminder_type = 'PENDING_BOOKING_CONFIRMATION';
 type Enum_public_scheduling_type = 'collective' | 'managed' | 'roundRobin';
 type Enum_public_time_unit = 'day' | 'hour' | 'minute';
 type Enum_public_user_permission_role = 'ADMIN' | 'USER';
-type Enum_public_webhook_trigger_events = 'BOOKING_CANCELLED' | 'BOOKING_CREATED' | 'BOOKING_PAID' | 'BOOKING_PAYMENT_INITIATED' | 'BOOKING_REJECTED' | 'BOOKING_REQUESTED' | 'BOOKING_RESCHEDULED' | 'FORM_SUBMITTED' | 'MEETING_ENDED' | 'RECORDING_READY';
+type Enum_public_webhook_trigger_events = 'BOOKING_CANCELLED' | 'BOOKING_CREATED' | 'BOOKING_PAID' | 'BOOKING_PAYMENT_INITIATED' | 'BOOKING_REJECTED' | 'BOOKING_REQUESTED' | 'BOOKING_RESCHEDULED' | 'FORM_SUBMITTED' | 'INSTANT_MEETING' | 'MEETING_ENDED' | 'MEETING_STARTED' | 'RECORDING_READY';
 type Enum_public_workflow_actions = 'EMAIL_ADDRESS' | 'EMAIL_ATTENDEE' | 'EMAIL_HOST' | 'SMS_ATTENDEE' | 'SMS_NUMBER' | 'WHATSAPP_ATTENDEE' | 'WHATSAPP_NUMBER';
 type Enum_public_workflow_methods = 'EMAIL' | 'SMS' | 'WHATSAPP';
 type Enum_public_workflow_templates = 'CANCELLED' | 'COMPLETED' | 'CUSTOM' | 'REMINDER' | 'RESCHEDULED';
@@ -131,6 +131,8 @@ interface Table_public_booking {
   metadata: Json | null;
   responses: Json | null;
   isRecorded: boolean;
+  iCalSequence: number;
+  iCalUID: string | null;
 }
 interface Table_public_booking_reference {
   id: number;
@@ -143,6 +145,7 @@ interface Table_public_booking_reference {
   deleted: boolean | null;
   externalCalendarId: string | null;
   credentialId: number | null;
+  thirdPartyRecurringEventId: string | null;
 }
 interface Table_public_booking_seat {
   id: number;
@@ -165,6 +168,9 @@ interface Table_public_credential {
   appId: string | null;
   invalid: boolean | null;
   teamId: number | null;
+  billingCycleStart: number | null;
+  paymentStatus: string | null;
+  subscriptionId: string | null;
 }
 interface Table_public_deployment {
   id: number;
@@ -223,6 +229,8 @@ interface Table_public_event_type {
   requiresBookerEmailVerification: boolean;
   seatsShowAvailabilityCount: boolean | null;
   lockTimeZoneToggleOnBookingPage: boolean;
+  onlyShowFirstAvailableSlot: boolean;
+  isInstantEvent: boolean;
 }
 interface Table_public_event_type_custom_input {
   id: number;
@@ -267,6 +275,15 @@ interface Table_public_impersonations {
   impersonatedUserId: number;
   impersonatedById: number;
 }
+interface Table_public_instant_meeting_token {
+  id: number;
+  token: string;
+  expires: string;
+  teamId: number;
+  bookingId: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
 interface Table_public_membership {
   teamId: number;
   userId: number;
@@ -281,6 +298,16 @@ interface Table_public_o_auth_client {
   clientSecret: string;
   name: string;
   logo: string | null;
+}
+interface Table_public_out_of_office_entry {
+  id: number;
+  uuid: string;
+  start: string;
+  end: string;
+  userId: number;
+  toUserId: number | null;
+  createdAt: string;
+  updatedAt: string;
 }
 interface Table_public_payment {
   id: number;
@@ -348,8 +375,8 @@ interface Table_public_team {
   createdAt: string;
   metadata: Json | null;
   hideBookATeamMember: boolean;
-  brandColor: string;
-  darkBrandColor: string;
+  brandColor: string | null;
+  darkBrandColor: string | null;
   theme: string | null;
   appLogo: string | null;
   appIconLogo: string | null;
@@ -358,6 +385,9 @@ interface Table_public_team {
   timeZone: string;
   weekStart: string;
   isPrivate: boolean;
+  logoUrl: string | null;
+  calVideoLogo: string | null;
+  pendingPayment: boolean;
 }
 interface Table_public_temp_org_redirect {
   id: number;
@@ -427,6 +457,7 @@ interface Table_public_workflow_reminder {
   workflowStepId: number | null;
   cancelled: boolean | null;
   seatReferenceId: string | null;
+  isMandatoryReminder: boolean | null;
 }
 interface Table_public_workflow_step {
   id: number;
@@ -461,6 +492,12 @@ interface Table_public_user_eventtype {
   A: number;
   B: number;
 }
+interface Table_public_avatars {
+  teamId: number;
+  userId: number;
+  data: string;
+  objectKey: string;
+}
 interface Table_public_users {
   id: number;
   username: string | null;
@@ -482,7 +519,7 @@ interface Table_public_users {
   twoFactorEnabled: boolean;
   twoFactorSecret: string | null;
   locale: string | null;
-  brandColor: string;
+  brandColor: string | null;
   identityProvider: Enum_public_identity_provider;
   identityProviderId: string | null;
   invitedTo: number | null;
@@ -490,7 +527,7 @@ interface Table_public_users {
   away: boolean;
   verified: boolean | null;
   timeFormat: number | null;
-  darkBrandColor: string;
+  darkBrandColor: string | null;
   trialEndsAt: string | null;
   defaultScheduleId: number | null;
   allowDynamicBooking: boolean | null;
@@ -500,6 +537,8 @@ interface Table_public_users {
   allowSEOIndexing: boolean | null;
   backupCodes: string | null;
   receiveMonthlyDigestEmail: boolean | null;
+  avatarUrl: string | null;
+  locked: boolean;
 }
 interface Schema_public {
   AccessCode: Table_public_access_code;
@@ -524,8 +563,10 @@ interface Schema_public {
   HashedLink: Table_public_hashed_link;
   Host: Table_public_host;
   Impersonations: Table_public_impersonations;
+  InstantMeetingToken: Table_public_instant_meeting_token;
   Membership: Table_public_membership;
   OAuthClient: Table_public_o_auth_client;
+  OutOfOfficeEntry: Table_public_out_of_office_entry;
   Payment: Table_public_payment;
   ReminderMail: Table_public_reminder_mail;
   ResetPasswordRequest: Table_public_reset_password_request;
@@ -545,6 +586,7 @@ interface Schema_public {
   WorkflowsOnEventTypes: Table_public_workflows_on_event_types;
   _prisma_migrations: Table_public_prisma_migrations;
   _user_eventtype: Table_public_user_eventtype;
+  avatars: Table_public_avatars;
   users: Table_public_users;
 }
 interface Database {
@@ -638,6 +680,7 @@ interface Tables_relationships {
        Attendee_bookingId_fkey: "public.Attendee";
        BookingReference_bookingId_fkey: "public.BookingReference";
        BookingSeat_bookingId_fkey: "public.BookingSeat";
+       InstantMeetingToken_bookingId_fkey: "public.InstantMeetingToken";
        Payment_bookingId_fkey: "public.Payment";
        WorkflowReminder_bookingUid_fkey: "public.WorkflowReminder";
     };
@@ -751,6 +794,15 @@ interface Tables_relationships {
 
     };
   };
+  "public.InstantMeetingToken": {
+    parent: {
+       InstantMeetingToken_bookingId_fkey: "public.Booking";
+       InstantMeetingToken_teamId_fkey: "public.Team";
+    };
+    children: {
+
+    };
+  };
   "public.Membership": {
     parent: {
        Membership_teamId_fkey: "public.Team";
@@ -766,6 +818,15 @@ interface Tables_relationships {
     };
     children: {
        AccessCode_clientId_fkey: "public.AccessCode";
+    };
+  };
+  "public.OutOfOfficeEntry": {
+    parent: {
+       OutOfOfficeEntry_toUserId_fkey: "public.users";
+       OutOfOfficeEntry_userId_fkey: "public.users";
+    };
+    children: {
+
     };
   };
   "public.Payment": {
@@ -813,6 +874,7 @@ interface Tables_relationships {
        App_RoutingForms_Form_teamId_fkey: "public.App_RoutingForms_Form";
        Credential_teamId_fkey: "public.Credential";
        EventType_teamId_fkey: "public.EventType";
+       InstantMeetingToken_teamId_fkey: "public.InstantMeetingToken";
        Membership_teamId_fkey: "public.Membership";
        Team_parentId_fkey: "public.Team";
        VerificationToken_teamId_fkey: "public.VerificationToken";
@@ -914,6 +976,8 @@ interface Tables_relationships {
        Impersonations_impersonatedById_fkey: "public.Impersonations";
        Impersonations_impersonatedUserId_fkey: "public.Impersonations";
        Membership_userId_fkey: "public.Membership";
+       OutOfOfficeEntry_toUserId_fkey: "public.OutOfOfficeEntry";
+       OutOfOfficeEntry_userId_fkey: "public.OutOfOfficeEntry";
        Schedule_userId_fkey: "public.Schedule";
        SelectedCalendar_userId_fkey: "public.SelectedCalendar";
        Session_userId_fkey: "public.Session";
@@ -1305,12 +1369,11 @@ type TypedConfig<
   ? {
     /**
      * Parameter to configure the generation of data.
-     * {@link https://docs.snaplet.dev/core-concepts/generate}
+     * {@link https://docs.snaplet.dev/core-concepts/seed}
      */
-      generate?: {
+      seed?: {
         alias?: import("./snaplet-client").Alias;
-        models?: import("./snaplet-client").UserModels;
-        run: (snaplet: import("./snaplet-client").SnapletClient) => Promise<any>;
+        fingerprint?: import("./snaplet-client").Fingerprint;
       }
     /**
      * Parameter to configure the inclusion/exclusion of schemas and tables from the snapshot.
@@ -1353,6 +1416,4 @@ declare module "snaplet" {
   >(
     config: TypedConfig<TSelectConfig, TTransformMode>
   ): TypedConfig<TSelectConfig, TTransformMode>;
-
-  export type SnapletClient = import("./snaplet-client").SnapletClient;
 }

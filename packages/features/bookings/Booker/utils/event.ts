@@ -1,11 +1,15 @@
-import { useSearchParams, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { shallow } from "zustand/shallow";
 
 import { useSchedule } from "@calcom/features/schedules";
+import { useCompatSearchParams } from "@calcom/lib/hooks/useCompatSearchParams";
 import { trpc } from "@calcom/trpc/react";
 
 import { useTimePreferences } from "../../lib/timePreferences";
 import { useBookerStore } from "../store";
+
+export type useEventReturnType = ReturnType<typeof useEvent>;
+export type useScheduleForEventReturnType = ReturnType<typeof useScheduleForEvent>;
 
 /**
  * Wrapper hook around the trpc query that fetches
@@ -61,7 +65,7 @@ export const useScheduleForEvent = ({
     (state) => [state.username, state.eventSlug, state.month, state.selectedDuration],
     shallow
   );
-  const searchParams = useSearchParams();
+  const searchParams = useCompatSearchParams();
   const rescheduleUid = searchParams?.get("rescheduleUid");
 
   const pathname = usePathname();
