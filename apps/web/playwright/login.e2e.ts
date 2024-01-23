@@ -74,6 +74,7 @@ testBothFutureAndLegacyRoutes.describe("Login and logout tests", () => {
       // by default password===username with the users fixture
       const { users } = await snaplet.users([
         {
+          id: workerIndex,
           username: `pro-${workerIndex}-${Date.now()}`,
           // create from username
           email: ({ data }) => `${data.username}@example.com`,
@@ -85,7 +86,7 @@ testBothFutureAndLegacyRoutes.describe("Login and logout tests", () => {
         const [pro] = users;
         await login({ username: pro.username, password: "wrong" }, page);
 
-        // assert for the visibility of the localized  alert message
+        // assert for the visibility of the localized alert message
         await expect(page.locator(`text=${alertMessage}`)).toBeVisible();
       } else {
         throw new Error("No users found");
