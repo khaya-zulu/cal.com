@@ -14,8 +14,6 @@ export const snaplet = new SnapletClient({
     users: {
       data: {
         locale: "en",
-        // for every user create the email address based on the username
-        email: ({ data }) => `${data.email}@example.com`,
         password: ({ data }) => hashPassword(data.username ?? "password") as unknown as string,
       },
     },
