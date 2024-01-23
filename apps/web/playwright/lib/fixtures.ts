@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { test as base } from "@playwright/test";
 
-import prisma from "@calcom/prisma";
+import prisma, { snaplet } from "@calcom/prisma";
 
 import type { ExpectedUrlDetails } from "../../../../playwright.config";
 import { createBookingsFixture } from "../fixtures/bookings";
@@ -26,6 +26,7 @@ export interface Fixtures {
   embeds: ReturnType<typeof createEmbedsFixture>;
   servers: ReturnType<typeof createServersFixture>;
   prisma: typeof prisma;
+  snaplet: typeof snaplet;
   emails: ReturnType<typeof createEmailsFixture>;
   routingForms: ReturnType<typeof createRoutingFormsFixture>;
   bookingPage: ReturnType<typeof createBookingPageFixture>;
@@ -80,6 +81,10 @@ export const test = base.extend<Fixtures>({
   },
   prisma: async ({}, use) => {
     await use(prisma);
+  },
+  snaplet: async ({}, use) => {
+    await snaplet.$resetDatabase();
+    await use(snaplet);
   },
   routingForms: async ({}, use) => {
     await use(createRoutingFormsFixture());

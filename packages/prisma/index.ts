@@ -1,9 +1,26 @@
 import type { Prisma } from "@prisma/client";
 import { PrismaClient as PrismaClientWithoutExtension } from "@prisma/client";
 import { withAccelerate } from "@prisma/extension-accelerate";
+import { SnapletClient } from "@snaplet/seed";
+
+import { hashPassword } from "@calcom/feature-auth/lib/hashPassword";
 
 import { excludePendingPaymentsExtension } from "./extensions/exclude-pending-payment-teams";
 import { bookingReferenceMiddleware } from "./middleware";
+
+export const snaplet = new SnapletClient({
+  dryRun: false,
+  models: {
+    users: {
+      data: {
+        locale: "en",
+        // for every user create the email address based on the username
+        email: ({ data }) => `${data.email}@example.com`,
+        password: ({ data }) => hashPassword(data.username ?? "password") as unknown as string,
+      },
+    },
+  },
+});
 
 const prismaOptions: Prisma.PrismaClientOptions = {};
 

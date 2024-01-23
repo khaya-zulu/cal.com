@@ -69,16 +69,22 @@ testBothFutureAndLegacyRoutes.describe("Login and logout tests", () => {
       await expect(page.locator(`text=${alertMessage}`)).toBeVisible();
     });
 
-    test("Should warn when password is incorrect", async ({ page, users }) => {
+    test("Should warn when password is incorrect", async ({ page, snaplet }) => {
       const alertMessage = (await localize("en"))("incorrect_email_password");
       // by default password===username with the users fixture
-      const pro = await users.create({ username: "pro" });
+      const pro = await snaplet.users([{ username: "pro" }]);
 
-      // login with a wrong password
-      await login({ username: pro.username, password: "wrong" }, page);
+      // eslint-disable-next-line playwright/no-conditional-in-test
+      if (pro.users?.length) {
+        const user = pro.users[0];
 
-      // assert for the visibility of the localized  alert message
-      await expect(page.locator(`text=${alertMessage}`)).toBeVisible();
+        await login({ username: user.username, password: "wrong" }, page);
+
+        // assert for the visibility of the localized  alert message
+        await expect(page.locator(`text=${alertMessage}`)).toBeVisible();
+      } else {
+        throw new Error("No users found");
+      }
     });
   });
 });
