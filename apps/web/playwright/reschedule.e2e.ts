@@ -1,6 +1,7 @@
 import { expect } from "@playwright/test";
 
 import dayjs from "@calcom/dayjs";
+import { WEBAPP_URL } from "@calcom/lib/constants";
 import prisma from "@calcom/prisma";
 import { BookingStatus } from "@calcom/prisma/enums";
 import { bookingMetadataSchema } from "@calcom/prisma/zod-utils";
@@ -19,14 +20,55 @@ test.describe.configure({ mode: "parallel" });
 test.afterEach(({ users }) => users.deleteAll());
 
 test.describe("Reschedule Tests", async () => {
-  test("Should do a booking request reschedule from /bookings", async ({ page, users, bookings }) => {
-    const user = await users.create();
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const booking = await bookings.create(user.id, user.username, user.eventTypes[0].id!, {
-      status: BookingStatus.ACCEPTED,
+  test("Should do a booking request reschedule from /bookings", async ({ page, snaplet, prisma, bookings: fix }) => {
+    // used to be `const user = await users.create();`
+    const { users: seededUsers, EventType } = await snaplet.users([
+      {
+        EventType: (x) => x(3, () => ({ _user_eventtype: ({ data }) => [{ B: data.users }])),
+        completedOnboarding: true,
+      },
+    ]);
+
+    await snaplet._user_eventtype([{}], {
+      connect: { EventType, users: seededUsers },
     });
 
-    await user.apiLogin();
+    const { Booking: bookings } = await snaplet.Booking(
+      [
+        {
+          status: "accepted",
+          startTime: dayjs().add(1, "day").toDate().toISOString(),
+          endTime: dayjs().add(1, "day").add(30, "minutes").toDate().toISOString(),
+          Attendee: (x) => x(2),
+        },
+      ],
+      {
+        connect: { EventType, users: seededUsers },
+      }
+    );
+
+    const user = seededUsers?.[0];
+
+    // used to be `user.apiLogin();`
+    // which is why I think we will just need update the user fixture
+    const csrfToken = await page
+      .context()
+      .request.get("/api/auth/csrf")
+      .then((response) => response.json())
+      .then((json) => json.csrfToken);
+
+    await page.context().request.post("/api/auth/callback/credentials", {
+      data: {
+        email: user?.email,
+        // as the password is hashed, and by default the password is the username
+        password: user?.username,
+        callbackUrl: WEBAPP_URL,
+        redirect: "false",
+        json: "true",
+        csrfToken,
+      },
+    });
+
     await page.goto("/bookings/upcoming");
 
     await page.locator('[data-testid="edit_booking"]').nth(0).click();
@@ -38,12 +80,15 @@ test.describe("Reschedule Tests", async () => {
     await page.locator('button[data-testid="send_request"]').click();
     await expect(page.locator('[id="modal-title"]')).toBeHidden();
 
-    const updatedBooking = await booking.self();
+    // used to be `const updatedBooking = await booking.self();`
+    const updatedBooking = await prisma.booking.findUnique({
+      where: { id: bookings?.[0].id },
+      include: { attendees: true, seatsReferences: true },
+    });
 
     expect(updatedBooking?.rescheduled).toBe(true);
     expect(updatedBooking?.cancellationReason).toBe("I can't longer have it");
     expect(updatedBooking?.status).toBe(BookingStatus.CANCELLED);
-    await booking.delete();
   });
 
   test("Should display former time when rescheduling availability", async ({ page, users, bookings }) => {
